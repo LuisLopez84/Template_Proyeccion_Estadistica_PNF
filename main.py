@@ -1,76 +1,158 @@
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 from scipy.optimize import curve_fit
-import pwlf
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
 
-# 📂 Ruta base donde están las carpetas EscenarioN
-# BASE_DIR = r"D:\Jmeter_Prueba_Pipeline"  # <-- CAMBIA ESTA RUTA
-BASE_DIR = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultatarjetaCapaPB"
-
-# 📂 Carpeta de salida para resultados
-OUTPUT_DIR = "output"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# ✅ Verificar que la ruta base existe
-if not os.path.exists(BASE_DIR):
-    raise FileNotFoundError(f"❌ La ruta especificada no existe: {BASE_DIR}")
-
-# 📈 Función logística para regresión no lineal
+# ----------------------------
+# Función logística
+# ----------------------------
 def logistic(x, L, k, x0):
     return L / (1 + np.exp(-k * (x - x0)))
 
-# 📊 Procesar archivo JTL
-def process_jtl(file_path):
-    df = pd.read_csv(file_path)
-    avg_rps = len(df) / 60  # 60 seg por escenario
-    p95_latency = np.percentile(df["elapsed"], 95)
-    error_rate = len(df[df["success"] == False]) / len(df) * 100
-    return avg_rps, p95_latency, error_rate
+# ----------------------------
+# Leer datos TPS desde carpetas EscenarioN
+# ----------------------------
+escenarios_dir = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultaProductoCapaSMP"  # Cambia esto
+usuarios = []
+tps_promedio = []
 
-# 🔍 Buscar y procesar todos los JTL en carpetas EscenarioN
-results = []
-for folder in sorted(os.listdir(BASE_DIR)):
-    folder_path = os.path.join(BASE_DIR, folder)
-    if os.path.isdir(folder_path) and folder.lower().startswith("escenario"):
-        for file in os.listdir(folder_path):
-            if file.endswith(".jtl"):
-                usuarios = int(''.join([c for c in file if c.isdigit()]))
-                avg_rps, p95_latency, error_rate = process_jtl(os.path.join(folder_path, file))
-                results.append([usuarios, avg_rps, p95_latency, error_rate])
+for carpeta in sorted(os.listdir(escenarios_dir)):
+    if carpeta.lower().startswith("escenario"):
+        try:
+            hilos = int(''.join(filter(str.isdigit, carpeta)))
+            archivo_jtl = os.path.join(escenarios_dir, carpeta, "resultados.jtl")
 
-if not results:
-    raise FileNotFoundError("❌ No se encontraron archivos .jtl en las carpetas EscenarioN.")
+            if os.path.exists(archivo_jtl):
+                df = pd.read_csv(archivo_jtl)
+                if "timeStamp" not in df.columns:
+                    print(f"El archivo {archivo_jtl} no tiene columna 'timeStamp'")
+                    continue
 
-# 📑 Guardar resultados consolidados
-df_results = pd.DataFrame(results, columns=["Usuarios", "TPS", "P95 Latency (ms)", "Error %"])
-df_results.to_csv(os.path.join(OUTPUT_DIR, "resumen.csv"), index=False)
+                tiempo_total_seg = (df["timeStamp"].max() - df["timeStamp"].min()) / 1000
+                if tiempo_total_seg <= 0:
+                    print(f"Tiempo total inválido en {archivo_jtl}")
+                    continue
 
-# 📈 Regresión no lineal para RPS
-xdata = df_results["Usuarios"]
-ydata = df_results["TPS"]
-popt, _ = curve_fit(logistic, xdata, ydata, p0=[max(ydata), 0.1, np.median(xdata)])
-x_fit = np.linspace(min(xdata), max(xdata), 100)
-y_fit = logistic(x_fit, *popt)
+                tps = len(df) / tiempo_total_seg
+                usuarios.append(hilos)
+                tps_promedio.append(tps)
+        except Exception as e:
+            print(f"Error procesando {carpeta}: {e}")
 
-# 📉 Cambio de pendiente
-pwlf_model = pwlf.PiecewiseLinFit(xdata, ydata)
-breaks = pwlf_model.fit(2)
-breakpoint_x = breaks[1]
+usuarios = np.array(usuarios)
+tps_promedio = np.array(tps_promedio)
 
-# 📊 Graficar resultados
-plt.figure()
-plt.scatter(xdata, ydata, label="Datos")
-plt.plot(x_fit, y_fit, label="Regresión logística", color="red")
+# Ordenar por número de hilos
+orden = np.argsort(usuarios)
+usuarios = usuarios[orden]
+tps_promedio = tps_promedio[orden]
 
-plt.axvline(breakpoint_x, color="green", linestyle="--", label=f"Breakpoint: {breakpoint_x:.1f} usuarios")
+# ----------------------------
+# Variables de control
+# ----------------------------
+tiene_ajuste = False
+L = k = x0 = breakpoint = None
+y_pred = []
+
+# ----------------------------
+# Intentar ajuste solo si hay datos suficientes
+# ----------------------------
+if len(usuarios) >= 3:
+    try:
+        p0 = [max(tps_promedio), 1, np.median(usuarios)]
+        params, _ = curve_fit(logistic, usuarios, tps_promedio, p0, maxfev=10000)
+        L, k, x0 = params
+        breakpoint = x0
+        y_pred = logistic(usuarios, L, k, x0)
+        tiene_ajuste = True
+    except Exception as e:
+        print(f"No se pudo ajustar la curva: {e}")
+
+# ----------------------------
+# Graficar resultados
+# ----------------------------
+plt.figure(figsize=(10, 6))
+plt.scatter(usuarios, tps_promedio, label="Datos reales", color="blue")
+
+if tiene_ajuste:
+    x_fit = np.linspace(min(usuarios), max(usuarios), 200)
+    y_fit = logistic(x_fit, L, k, x0)
+    plt.plot(x_fit, y_fit, label="Regresión logística", color="red", linewidth=2)
+    plt.axvline(breakpoint, color="green", linestyle="--", label=f"Breakpoint: {breakpoint:.1f} usuarios")
+else:
+    plt.text(0.5, 0.9, "No se pudo ajustar la curva\n(Datos insuficientes)",
+             transform=plt.gca().transAxes, fontsize=12, color="red", ha="center")
+
+plt.title("Comportamiento TPS vs Usuarios")
 plt.xlabel("Usuarios (hilos)")
 plt.ylabel("TPS")
 plt.legend()
-plt.title("Regresión no lineal y cambio de pendiente")
-plt.savefig(os.path.join(OUTPUT_DIR, "regresion_tps.png"))
+plt.grid(True)
+
+grafica_path = os.path.join(escenarios_dir, "grafica_regresion.png")
+plt.savefig(grafica_path)
 plt.close()
 
-print("✅ Análisis completado.")
-print(f"📂 Resultados guardados en: {os.path.abspath(OUTPUT_DIR)}")
+# ----------------------------
+# Generar informe PDF multipágina
+# ----------------------------
+pdf_path = os.path.join(escenarios_dir, "informe_regresion.pdf")
+c = canvas.Canvas(pdf_path, pagesize=letter)
+width, height = letter
+
+# -------- Página 1: Resumen --------
+c.setFont("Helvetica-Bold", 16)
+c.drawString(50, height - 50, "Proyección Estadística del comportamiento del servicio.")
+
+if tiene_ajuste:
+    analisis = f"""
+    Breakpoint: {breakpoint:.2f} usuarios/hilos
+    Capacidad máxima estimada (L): {L:.2f} TPS
+    Recomendación: No superar {breakpoint:.0f} hilos para mantener eficiencia.
+    """
+else:
+    analisis = """
+    No se pudo realizar la regresión logística debido a datos insuficientes.
+    Requiere al menos 3 puntos para el ajuste.
+    """
+
+c.setFont("Helvetica", 10)
+y_pos = height - 80
+for linea in analisis.strip().split("\n"):
+    c.drawString(50, y_pos, linea)
+    y_pos -= 12
+
+c.showPage()
+
+# -------- Página 2: Tabla de datos --------
+data = [["Usuarios", "TPS Real"] + (["TPS Estimado"] if tiene_ajuste else [])]
+for i, u in enumerate(usuarios):
+    fila = [int(u), f"{tps_promedio[i]:.2f}"]
+    if tiene_ajuste:
+        fila.append(f"{y_pred[i]:.2f}")
+    data.append(fila)
+
+tabla = Table(data, colWidths=[150] * len(data[0]))
+tabla.setStyle(TableStyle([
+    ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+    ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+    ("GRID", (0, 0), (-1, -1), 1, colors.black)
+]))
+tabla.wrapOn(c, width, height)
+tabla.drawOn(c, 50, height - 300)
+
+c.showPage()
+
+# -------- Página 3: Imagen de la gráfica --------
+c.drawImage(grafica_path, 50, 150, width=500, height=400)
+
+c.save()
+print(f"Informe multipágina generado en: {pdf_path}")
