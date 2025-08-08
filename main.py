@@ -7,7 +7,7 @@ import pwlf
 
 # 📂 Ruta base donde están las carpetas EscenarioN
 # BASE_DIR = r"D:\Jmeter_Prueba_Pipeline"  # <-- CAMBIA ESTA RUTA
-BASE_DIR = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultaProductoCapaSMP"
+BASE_DIR = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultatarjetaCapaPB"
 
 # 📂 Carpeta de salida para resultados
 OUTPUT_DIR = "output"
