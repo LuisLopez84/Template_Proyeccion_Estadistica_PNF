@@ -41,3 +41,23 @@ El script:
 - Detecta punto de quiebre
 - Genera gráficos en la carpeta `output/`
 
+## Uso desde pipeline
+GitHub Actions no puede acceder directamente al disco D: de la máquina local porque los runners de GitHub son máquinas virtuales en la nube.
+Para ejecutar el pipeline desde la carpeta en D:\, se debe usar un Self-hosted Runner instalado en la máquina local.
+Ese runner será el que ejecute el script de Python y tenga acceso a D:\....
+
+
+1️⃣ Configurar un Self-hosted Runner en el PC local
+
+a. Ve a tu repositorio en GitHub.
+b. Settings → Actions → Runners → New self-hosted runner.
+c. Selecciona Windows y sigue las instrucciones:
+d. Descarga el paquete .zip que te da GitHub.
+e. Descomprímelo en una carpeta, por ejemplo C:\github-runner.
+f. Abre cmd en esa carpeta y ejecuta el comando que te da GitHub para registrar el runner.
+g. Luego inicia el runner con:
+
+run.cmd
+
+Una vez activo, tu repositorio podrá usarlo para ejecutar el script.
+
