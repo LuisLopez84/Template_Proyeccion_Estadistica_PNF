@@ -10,10 +10,15 @@ on:
 
 jobs:
   run-analysis:
-    runs-on: self-hosted  # Usa tu máquina local como runner
+    runs-on: self-hosted
     steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+
+      - name: Habilitar ejecución de scripts
+        run: powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force"
+
+      - name: Ejecutar análisis
+        run: python D:\jmeter_regresion_analysis\main.py
 
       - name: Configurar Python
         uses: actions/setup-python@v4
