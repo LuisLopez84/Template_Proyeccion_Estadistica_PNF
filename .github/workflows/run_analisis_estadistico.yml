@@ -1,0 +1,29 @@
+name: Ejecutar análisis Estadistico JMeter
+
+on:
+  workflow_dispatch:
+    inputs:
+      ruta_escenarios:
+        description: 'Ruta de la carpeta que contiene los EscenarioN'
+        required: true
+        default: 'D:\BackupX13\D_LUIS_lOPEZ\CMD_Jmeter\GPO'
+
+jobs:
+  run-analysis:
+    runs-on: self-hosted  # Usa tu máquina local como runner
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          pip install pandas matplotlib scipy reportlab
+
+      - name: Ejecutar script de análisis
+        run: |
+          python scripts/jmeter_regresion_analysis.py "${{ github.event.inputs.ruta_escenarios }}"
