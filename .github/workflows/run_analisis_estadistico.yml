@@ -13,7 +13,7 @@ jobs:
     runs-on: self-hosted
     defaults:
       run:
-        shell: cmd   # 👈 Fuerza todos los steps a usar CMD y no PowerShell
+        shell: cmd   # Fuerza todos los steps a usar CMD y no PowerShell
 
     steps:
       - uses: actions/checkout@v3
@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-        shell: cmd   # 👈 Importante: incluso este step
+        shell: cmd
 
       - name: Instalar dependencias
         run: pip install pandas matplotlib scipy reportlab
