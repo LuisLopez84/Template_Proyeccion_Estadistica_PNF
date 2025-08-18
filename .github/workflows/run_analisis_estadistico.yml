@@ -11,14 +11,12 @@ on:
 jobs:
   run-analysis:
     runs-on: self-hosted
+    defaults:
+      run:
+        shell: cmd   # 👈 Forzamos a usar cmd.exe en vez de PowerShell
+
     steps:
       - uses: actions/checkout@v3
-
-      - name: Habilitar ejecución de scripts
-        run: powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force"
-
-      - name: Ejecutar análisis
-        run: python D:\jmeter_regresion_analysis\main.py
 
       - name: Configurar Python
         uses: actions/setup-python@v4
@@ -26,9 +24,7 @@ jobs:
           python-version: '3.11'
 
       - name: Instalar dependencias
-        run: |
-          pip install pandas matplotlib scipy reportlab
+        run: pip install pandas matplotlib scipy reportlab
 
       - name: Ejecutar script de análisis
-        run: |
-          python scripts/jmeter_regresion_analysis.py "${{ github.event.inputs.ruta_escenarios }}"
+        run: python D:\jmeter_regresion_analysis\main.py "${{ github.event.inputs.ruta_escenarios }}"
