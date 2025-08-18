@@ -2,6 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import sys
 from scipy.optimize import curve_fit
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -16,7 +17,11 @@ def logistic(x, L, k, x0):
 # ----------------------------
 # Ruta base de escenarios
 # ----------------------------
-escenarios_dir = r"D:\BackupX13\D_LUIS_lOPEZ\CMD_Jmeter\GPO"
+# Leer argumento desde línea de comandos
+if len(sys.argv) > 1:
+    escenarios_dir = sys.argv[1]
+else:
+    escenarios_dir = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultaProductoCapaSMP"
 usuarios = []
 tps_promedio = []
 
