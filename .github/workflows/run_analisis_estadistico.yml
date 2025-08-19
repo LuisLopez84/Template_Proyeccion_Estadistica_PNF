@@ -11,9 +11,6 @@ on:
 jobs:
   run-analysis:
     runs-on: self-hosted
-    defaults:
-      run:
-        shell: cmd   #Fuerza todos los steps a usar CMD y no PowerShell
 
     steps:
       - uses: actions/checkout@v3
@@ -22,10 +19,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-        shell: cmd   #Importante: incluso este step
 
       - name: Instalar dependencias
         run: pip install pandas matplotlib scipy reportlab
+        shell: cmd
 
       - name: Ejecutar script de análisis
         run: python D:\jmeter_regresion_analysis\main.py "${{ github.event.inputs.ruta_escenarios }}"
+        shell: cmd
