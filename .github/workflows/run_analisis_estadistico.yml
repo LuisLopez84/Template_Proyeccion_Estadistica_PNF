@@ -4,28 +4,48 @@ on:
   workflow_dispatch:
     inputs:
       ruta_escenarios:
-        description: 'Ruta de la carpeta que contiene los EscenarioN'
+        description: 'Ruta local que contiene las carpetas EscenarioN'
         required: true
-        default: 'D:\BackupX13\D_LUIS_lOPEZ\CMD_Jmeter\GPO'
+        default: 'D:/Jmeter_Prueba_Pipeline_Varios/ConsultaProductoCapaSMP'
 
 jobs:
   run-analysis:
     runs-on: self-hosted
-
     defaults:
       run:
         shell: cmd
+        working-directory: ${{ github.workspace }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Configurar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Instalar dependencias
-        run: pip install pandas matplotlib scipy reportlab
+        run: pip install pandas matplotlib scipy reportlab pwlf
 
-      - name: Ejecutar script de análisis
-        run: python D:\jmeter_regresion_analysis\main.py "${{ github.event.inputs.ruta_escenarios }}"
+      - name: Ejecutar análisis
+        # tu main.py debe escribir en ./output/ como se indicó arriba
+        run: python main.py "${{ github.event.inputs.ruta_escenarios }}"
+
+      - name: Verificar archivos generados (debug)
+        run: |
+          dir
+          echo === OUTPUT ===
+          dir /s output
+
+      - name: Subir artefactos (CSV + PDF + PNG)
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-analisis
+          path: |
+            output/**/*.csv
+            output/**/*.pdf
+            output/**/*.png
+          if-no-files-found: error         # cambia a 'warn' si prefieres no fallar
+          retention-days: 10               # ajusta a tu gusto
+          compression-level: 6
