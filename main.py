@@ -13,6 +13,11 @@ from datetime import datetime
 OUTPUT_DIR = os.path.join(os.environ.get("GITHUB_WORKSPACE", os.getcwd()), "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# guarda todo aquí:
+#    CSV:  os.path.join(OUTPUT_DIR, "resultados_grafana.csv")
+#   PNG:  os.path.join(OUTPUT_DIR, "grafica_regresion.png")
+#   PDF:  os.path.join(OUTPUT_DIR, "Informe_Proyeccion_Estadistica_PNF.pdf")
+
 # ----------------------------
 # Función logística
 # ----------------------------
