@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys
+import pandas as pd
 from scipy.optimize import curve_fit
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -110,6 +111,17 @@ plt.grid(True)
 grafica_path = os.path.join(escenarios_dir, "grafica_regresion.png")
 plt.savefig(grafica_path)
 plt.close()
+
+
+# después de calcular `usuarios` y `tps_promedio`
+df_resultados = pd.DataFrame({
+    "usuarios": usuarios,
+    "tps_promedio": tps_promedio
+})
+
+# Guardar en CSV para Grafana (puede estar en carpeta compartida)
+df_resultados.to_csv("D:/jmeter_regresion_analysis/output/resultados_grafana.csv", index=False)
+
 
 # ----------------------------
 # Generar PDF con formato personalizado
