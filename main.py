@@ -3,20 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import sys
-import pandas as pd
 from scipy.optimize import curve_fit
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from datetime import datetime
 
-
+# ----------------------------
+# Carpeta de salida centralizada
+# ----------------------------
 OUTPUT_DIR = os.path.join(os.environ.get("GITHUB_WORKSPACE", os.getcwd()), "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# guarda todo aquí:
-#    CSV:  os.path.join(OUTPUT_DIR, "resultados_grafana.csv")
-#   PNG:  os.path.join(OUTPUT_DIR, "grafica_regresion.png")
-#   PDF:  os.path.join(OUTPUT_DIR, "Informe_Proyeccion_Estadistica_PNF.pdf")
 
 # ----------------------------
 # Función logística
@@ -27,11 +23,11 @@ def logistic(x, L, k, x0):
 # ----------------------------
 # Ruta base de escenarios
 # ----------------------------
-# Leer argumento desde línea de comandos
 if len(sys.argv) > 1:
     escenarios_dir = sys.argv[1]
 else:
     escenarios_dir = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultaProductoCapaSMP"
+
 usuarios = []
 tps_promedio = []
 
@@ -100,8 +96,10 @@ if len(usuarios) >= 3:
         print(f"No se pudo ajustar la curva: {e}")
 
 # ----------------------------
-# Generar gráfica
+# Generar gráfica en OUTPUT_DIR
 # ----------------------------
+grafica_path = os.path.join(OUTPUT_DIR, "grafica_regresion.png")
+
 plt.figure(figsize=(10, 6))
 plt.scatter(usuarios, tps_promedio, label="Datos reales", color="blue")
 
@@ -117,25 +115,23 @@ plt.ylabel("TPS")
 plt.legend()
 plt.grid(True)
 
-grafica_path = os.path.join(escenarios_dir, "grafica_regresion.png")
 plt.savefig(grafica_path)
 plt.close()
 
-
-# después de calcular `usuarios` y `tps_promedio`
+# ----------------------------
+# Guardar resultados CSV en OUTPUT_DIR
+# ----------------------------
+csv_path = os.path.join(OUTPUT_DIR, "resultados_grafana.csv")
 df_resultados = pd.DataFrame({
     "usuarios": usuarios,
     "tps_promedio": tps_promedio
 })
-
-# Guardar en CSV para Grafana (puede estar en carpeta compartida)
-df_resultados.to_csv("D:/jmeter_regresion_analysis/output/resultados_grafana.csv", index=False)
-
+df_resultados.to_csv(csv_path, index=False)
 
 # ----------------------------
-# Generar PDF con formato personalizado
+# Generar PDF en OUTPUT_DIR
 # ----------------------------
-pdf_path = os.path.join(escenarios_dir, "Informe_Proyeccion_Estadistica_PNF.pdf")
+pdf_path = os.path.join(OUTPUT_DIR, "Informe_Proyeccion_Estadistica_PNF.pdf")
 c = canvas.Canvas(pdf_path, pagesize=letter)
 width, height = letter
 
@@ -146,12 +142,9 @@ c.drawString(155, height - 55, "COMPORTAMIENTO DEL SERVICIO")
 c.setFont("Helvetica", 7)
 c.drawString(50, height - 75, f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-# Calcular posición Y para la gráfica
-posicion_y_grafica = height - 80 - 350  # 400 es la altura de la gráfica
-
-# Dibujar la gráfica debajo del texto
+# Dibujar la gráfica
+posicion_y_grafica = height - 80 - 350
 c.drawImage(grafica_path, 50, posicion_y_grafica, width=450, height=350)
-
 
 # Resultados clave
 c.setFont("Helvetica-Bold", 12)
@@ -183,40 +176,10 @@ for line in formula_desc:
     c.drawString(60, y_pos, f"• {line}")
     y_pos -= 12
 
-# Interpretación gráfica
-c.setFont("Helvetica-Bold", 12)
-c.drawString(50, y_pos - 10, "INTERPRETACIÓN DE LA GRÁFICA:")
-c.setFont("Helvetica", 9)
-interpretacion = [
-    "1. Eje X: Usuarios/hilos concurrentes",
-    "2. Eje Y: TPS (Transacciones por segundo)",
-    "3. Puntos azules: Datos reales de las pruebas",
-    "4. Línea roja: Regresión logística (curva ajustada)",
-    "5. Línea verde: Breakpoint (punto de saturación)"
-]
-y_pos -= 25
-for line in interpretacion:
-    c.drawString(60, y_pos, f"{line}")
-    y_pos -= 12
-
-c.setFont("Helvetica", 7)
-interpretacion = [
-    "1. Estrategia estadística aplicada:",
-    "a. Análisis de regresión no lineal",
-    "2. Método de análisis estadístico aplicado:",
-    "a. Regresión no lineal (modelo logístico o exponencial)",
-    "b. Cambio de pendiente (Análisis de punto de quiebre / breakpoint))",
-]
-y_pos -= 25
-for line in interpretacion:
-    c.drawString(60, y_pos, f"{line}")
-    y_pos -= 12
-
 c.showPage()
-
-# Segunda página: gráfica
-#c.drawImage(grafica_path, 50, 200, width=500, height=400)
-#c.showPage()
-
 c.save()
-print(f"Informe generado en: {pdf_path}")
+
+print(f"✅ Archivos generados en: {OUTPUT_DIR}")
+print(f"- CSV: {csv_path}")
+print(f"- PNG: {grafica_path}")
+print(f"- PDF: {pdf_path}")
