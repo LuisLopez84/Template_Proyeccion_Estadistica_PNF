@@ -176,6 +176,35 @@ for line in formula_desc:
     c.drawString(60, y_pos, f"• {line}")
     y_pos -= 12
 
+# Interpretación gráfica
+c.setFont("Helvetica-Bold", 12)
+c.drawString(50, y_pos - 10, "INTERPRETACIÓN DE LA GRÁFICA:")
+c.setFont("Helvetica", 9)
+interpretacion = [
+    "1. Eje X: Usuarios/hilos concurrentes",
+    "2. Eje Y: TPS (Transacciones por segundo)",
+    "3. Puntos azules: Datos reales de las pruebas",
+    "4. Línea roja: Regresión logística (curva ajustada)",
+    "5. Línea verde: Breakpoint (punto de saturación)"
+]
+y_pos -= 25
+for line in interpretacion:
+    c.drawString(60, y_pos, f"{line}")
+    y_pos -= 12
+
+c.setFont("Helvetica", 7)
+interpretacion = [
+    "1. Estrategia estadística aplicada:",
+        "a. Análisis de regresión no lineal",
+    "2. Método de análisis estadístico aplicado:",
+        "a. Regresión no lineal (modelo logístico o exponencial)",
+        "b. Cambio de pendiente (Análisis de punto de quiebre / breakpoint))",
+]
+y_pos -= 25
+for line in interpretacion:
+    c.drawString(60, y_pos, f"{line}")
+    y_pos -= 12
+
 c.showPage()
 c.save()
 
