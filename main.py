@@ -9,6 +9,10 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from datetime import datetime
 
+
+OUTPUT_DIR = os.path.join(os.environ.get("GITHUB_WORKSPACE", os.getcwd()), "output")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 # ----------------------------
 # Función logística
 # ----------------------------
