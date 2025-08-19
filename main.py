@@ -179,7 +179,7 @@ for line in formula_desc:
 c.showPage()
 c.save()
 
-print(f"✅ Archivos generados en: {OUTPUT_DIR}")
+print(f"[OK] Archivos generados en: {OUTPUT_DIR}")
 print(f"- CSV: {csv_path}")
 print(f"- PNG: {grafica_path}")
 print(f"- PDF: {pdf_path}")
