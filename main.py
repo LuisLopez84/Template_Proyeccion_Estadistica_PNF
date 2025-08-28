@@ -4,9 +4,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sys
 from scipy.optimize import curve_fit
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 from datetime import datetime
+
+# ReportLab para PDF
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle,
+    Paragraph, Spacer, Image
+)
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 
 # ----------------------------
 # Carpeta de salida centralizada
@@ -30,6 +37,7 @@ else:
 
 usuarios = []
 tps_promedio = []
+resultados_escenarios = []
 
 # ----------------------------
 # Leer datos de todos los .jtl en cada carpeta EscenarioN
@@ -48,23 +56,44 @@ for carpeta in sorted(os.listdir(escenarios_dir)):
 
             total_registros = 0
             total_tiempo = 0
+            tiempos_respuesta = []
+            errores = 0
 
             for jtl in jtl_files:
                 archivo_jtl = os.path.join(carpeta_path, jtl)
                 df = pd.read_csv(archivo_jtl)
 
-                if "timeStamp" not in df.columns:
+                if "timeStamp" not in df.columns or "elapsed" not in df.columns:
                     continue
 
                 tiempo_total_seg = (df["timeStamp"].max() - df["timeStamp"].min()) / 1000
                 if tiempo_total_seg > 0:
                     total_registros += len(df)
                     total_tiempo += tiempo_total_seg
+                    tiempos_respuesta.extend(df["elapsed"].tolist())
+                    if "success" in df.columns:
+                        errores += len(df[df["success"] == False])
 
-            if total_tiempo > 0:
+            if total_tiempo > 0 and total_registros > 0:
                 tps = total_registros / total_tiempo
+                avg_resp = np.mean(tiempos_respuesta)
+                min_resp = np.min(tiempos_respuesta)
+                max_resp = np.max(tiempos_respuesta)
+                error_pct = (errores / total_registros) * 100 if total_registros > 0 else 0
+
                 usuarios.append(hilos)
                 tps_promedio.append(tps)
+
+                resultados_escenarios.append({
+                    "escenario": carpeta,
+                    "usuarios": hilos,
+                    "transacciones": total_registros,
+                    "tiempo_prom": avg_resp,
+                    "tiempo_min": min_resp,
+                    "tiempo_max": max_resp,
+                    "error_pct": error_pct,
+                    "tps": tps
+                })
 
         except Exception as e:
             print(f"Error procesando {carpeta}: {e}")
@@ -76,6 +105,8 @@ tps_promedio = np.array(tps_promedio)
 orden = np.argsort(usuarios)
 usuarios = usuarios[orden]
 tps_promedio = tps_promedio[orden]
+
+df_escenarios = pd.DataFrame(resultados_escenarios)
 
 # ----------------------------
 # Ajuste de curva logística
@@ -114,7 +145,6 @@ plt.xlabel("Usuarios (hilos)")
 plt.ylabel("TPS")
 plt.legend()
 plt.grid(True)
-
 plt.savefig(grafica_path)
 plt.close()
 
@@ -129,84 +159,111 @@ df_resultados = pd.DataFrame({
 df_resultados.to_csv(csv_path, index=False)
 
 # ----------------------------
+# Calcular totales
+# ----------------------------
+if not df_escenarios.empty:
+    total_transacciones = df_escenarios["transacciones"].sum()
+    total_tiempo_prom = df_escenarios["tiempo_prom"].mean()
+    total_tiempo_min = df_escenarios["tiempo_min"].mean()
+    total_tiempo_max = df_escenarios["tiempo_max"].mean()
+    total_error_pct = df_escenarios["error_pct"].mean()
+    total_tps = df_escenarios["tps"].mean()
+else:
+    total_transacciones = total_tiempo_prom = total_tiempo_min = 0
+    total_tiempo_max = total_error_pct = total_tps = 0
+
+# ----------------------------
 # Generar PDF en OUTPUT_DIR
 # ----------------------------
 pdf_path = os.path.join(OUTPUT_DIR, "Informe_Proyeccion_Estadistica_PNF.pdf")
-c = canvas.Canvas(pdf_path, pagesize=letter)
-width, height = letter
+doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+styles = getSampleStyleSheet()
+elements = []
+
 
 # Título
-c.setFont("Helvetica-Bold", 18)
-c.drawString(165, height - 35, "PROYECCIÓN ESTADÍSTICA DEL")
-c.drawString(155, height - 55, "COMPORTAMIENTO DEL SERVICIO")
-c.setFont("Helvetica", 7)
-c.drawString(50, height - 75, f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+elements.append(Paragraph("<b>PROYECCIÓN ESTADÍSTICA DEL COMPORTAMIENTO DEL SERVICIO</b>", styles["Title"]))
+elements.append(Spacer(1, 12))
+elements.append(Paragraph(f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]))
+elements.append(Spacer(1, 20))
 
-# Dibujar la gráfica
-posicion_y_grafica = height - 80 - 350
-c.drawImage(grafica_path, 50, posicion_y_grafica, width=450, height=350)
+
+
+# Insertar gráfica
+elements.append(Paragraph("<b>Gráfica de Regresión no lineal</b>", styles["Heading2"]))
+elements.append(Spacer(1, 12))
+elements.append(Image(grafica_path, width=450, height=300))
+elements.append(Spacer(1, 20))
 
 # Resultados clave
-c.setFont("Helvetica-Bold", 12)
-c.drawString(50, height - 450, "RESULTADOS CLAVE:")
-c.setFont("Helvetica", 10)
+elements.append(Paragraph("<b>RESULTADOS CLAVE:</b>", styles["Heading2"]))
 if tiene_ajuste:
-    c.drawString(60, height - 465, f"• Breakpoint exacto: {breakpoint:.2f} usuarios/hilos")
-    c.drawString(60, height - 480, f"• Capacidad máxima estimada (L): {L:.2f} TPS")
-    c.drawString(60, height - 495, f"• Recomendación: No superar {breakpoint:.0f} hilos para mantener eficiencia")
+    elements.append(Paragraph(f"• Breakpoint exacto: <b>{breakpoint:.2f}</b> usuarios/hilos", styles["Normal"]))
+    elements.append(Paragraph(f"• Capacidad máxima estimada (L): <b>{L:.2f}</b> TPS", styles["Normal"]))
+    elements.append(Paragraph(f"• Recomendación: No superar <b>{breakpoint:.0f}</b> hilos para mantener eficiencia", styles["Normal"]))
 else:
-    c.drawString(60, height - 465, "No se pudo realizar la regresión logística por datos insuficientes")
+    elements.append(Paragraph("No se pudo realizar la regresión logística por datos insuficientes", styles["Normal"]))
+elements.append(Spacer(1, 15))
 
 # Explicación fórmula
-c.setFont("Helvetica-Bold", 12)
-c.drawString(50, height - 530, "FÓRMULA UTILIZADA:")
-c.setFont("Courier", 9)
-c.drawString(60, height - 545, "def logistic(x, L, k, x0):")
-c.drawString(60, height - 560, "    return L / (1 + np.exp(-k * (x - x0)))")
+elements.append(Paragraph("<b>FÓRMULA UTILIZADA:</b>", styles["Heading2"]))
+elements.append(Paragraph("<font face='Courier'>def logistic(x, L, k, x0):</font>", styles["Normal"]))
+elements.append(Paragraph("<font face='Courier'>    return L / (1 + np.exp(-k * (x - x0)))</font>", styles["Normal"]))
 
-c.setFont("Helvetica", 9)
 formula_desc = [
     "x → Número de usuarios/hilos",
     "L → Capacidad máxima (TPS)",
     "k → Velocidad de crecimiento de la curva",
     "x0 → Punto medio (usuarios donde la curva alcanza la mitad de L)"
 ]
-y_pos = height - 580
 for line in formula_desc:
-    c.drawString(60, y_pos, f"• {line}")
-    y_pos -= 12
+    elements.append(Paragraph(f"• {line}", styles["Normal"]))
 
-# Interpretación gráfica
-c.setFont("Helvetica-Bold", 12)
-c.drawString(50, y_pos - 10, "INTERPRETACIÓN DE LA GRÁFICA:")
-c.setFont("Helvetica", 9)
-interpretacion = [
-    "1. Eje X: Usuarios/hilos concurrentes",
-    "2. Eje Y: TPS (Transacciones por segundo)",
-    "3. Puntos azules: Datos reales de las pruebas",
-    "4. Línea roja: Regresión logística (curva ajustada)",
-    "5. Línea verde: Breakpoint (punto de saturación)"
+elements.append(Spacer(1, 20))
+
+
+# Tabla de resultados por escenario
+if not df_escenarios.empty:
+    tabla_data = [["Escenario", "Usuarios", "Tx Enviadas", "Resp Prom (ms)", "Resp Min (ms)", "Resp Max (ms)", "% Error", "TPS"]]
+    for _, row in df_escenarios.iterrows():
+        tabla_data.append([
+            row["escenario"], int(row["usuarios"]), int(row["transacciones"]),
+            f"{row['tiempo_prom']:.2f}", f"{row['tiempo_min']:.2f}",
+            f"{row['tiempo_max']:.2f}", f"{row['error_pct']:.2f}%",
+            f"{row['tps']:.2f}"
+        ])
+
+    tabla = Table(tabla_data, repeatRows=1)
+    tabla.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.grey),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.black),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+    ]))
+    elements.append(Paragraph("<b>Resultados por Escenario</b>", styles["Heading2"]))
+    elements.append(tabla)
+    elements.append(Spacer(1, 20))
+
+# Tabla resumen total
+tabla_total = [
+    ["Total Tx", "Resp Prom (ms)", "Prom Resp Min (ms)", "Prom Resp Max (ms)", "Prom % Error", "Prom TPS"],
+    [f"{total_transacciones}", f"{total_tiempo_prom:.2f}", f"{total_tiempo_min:.2f}",
+     f"{total_tiempo_max:.2f}", f"{total_error_pct:.2f}%", f"{total_tps:.2f}"]
 ]
-y_pos -= 25
-for line in interpretacion:
-    c.drawString(60, y_pos, f"{line}")
-    y_pos -= 12
+tabla2 = Table(tabla_total, repeatRows=1)
+tabla2.setStyle(TableStyle([
+    ("BACKGROUND", (0,0), (-1,0), colors.darkblue),
+    ("TEXTCOLOR", (0,0), (-1,0), colors.whitesmoke),
+    ("ALIGN", (0,0), (-1,-1), "CENTER"),
+    ("GRID", (0,0), (-1,-1), 0.5, colors.black),
+    ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+]))
+elements.append(Paragraph("<b>Resumen General</b>", styles["Heading2"]))
+elements.append(tabla2)
 
-c.setFont("Helvetica", 7)
-interpretacion = [
-    "1. Estrategia estadística aplicada:",
-        "a. Análisis de regresión no lineal",
-    "2. Método de análisis estadístico aplicado:",
-        "a. Regresión no lineal (modelo logístico o exponencial)",
-        "b. Cambio de pendiente (Análisis de punto de quiebre / breakpoint))",
-]
-y_pos -= 25
-for line in interpretacion:
-    c.drawString(60, y_pos, f"{line}")
-    y_pos -= 12
-
-c.showPage()
-c.save()
+# Generar PDF
+doc.build(elements)
 
 print(f"[OK] Archivos generados en: {OUTPUT_DIR}")
 print(f"- CSV: {csv_path}")
