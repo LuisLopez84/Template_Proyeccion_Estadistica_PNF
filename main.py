@@ -183,7 +183,7 @@ elements = []
 
 # Título
 elements.append(Paragraph("<b>PROYECCIÓN ESTADÍSTICA DEL COMPORTAMIENTO DEL SERVICIO</b>", styles["Title"]))
-elements.append(Spacer(1, 12))
+elements.append(Spacer(1, -28))
 elements.append(Paragraph(f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]))
 elements.append(Spacer(1, 20))
 
@@ -247,7 +247,7 @@ if not df_escenarios.empty:
 
 # Tabla resumen total
 tabla_total = [
-    ["Total Tx", "Resp Prom (ms)", "Prom Resp Min (ms)", "Prom Resp Max (ms)", "Prom % Error", "Prom TPS"],
+    ["Total Tx", "(t)Resp Prom (ms)", "(t)Prom Resp Min (ms)", "(t)Prom Resp Max (ms)", "Prom % Error", "Prom TPS"],
     [f"{total_transacciones}", f"{total_tiempo_prom:.2f}", f"{total_tiempo_min:.2f}",
      f"{total_tiempo_max:.2f}", f"{total_error_pct:.2f}%", f"{total_tps:.2f}"]
 ]
