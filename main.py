@@ -205,7 +205,7 @@ else:
     elements.append(Paragraph("No se pudo realizar la regresión logística por datos insuficientes", styles["Normal"]))
 elements.append(Spacer(1, 15))
 
-# Explicación fórmula
+# Explicación fórmula (debajo de la gráfica y en la misma hoja)
 elements.append(Paragraph("<b>FÓRMULA UTILIZADA:</b>", styles["Heading2"]))
 elements.append(Paragraph("<font face='Courier'>def logistic(x, L, k, x0):</font>", styles["Normal"]))
 elements.append(Paragraph("<font face='Courier'>    return L / (1 + np.exp(-k * (x - x0)))</font>", styles["Normal"]))
@@ -213,8 +213,8 @@ elements.append(Paragraph("<font face='Courier'>    return L / (1 + np.exp(-k * 
 formula_desc = [
     "x → Número de usuarios/hilos",
     "L → Capacidad máxima (TPS)",
-    "k → Velocidad de crecimiento de la curva",
-    "x0 → Punto medio (usuarios donde la curva alcanza la mitad de L)"
+    "k ® Velocidad de crecimiento de la curva",
+    "x0 ® Punto medio (usuarios donde la curva alcanza la mitad de L)"
 ]
 for line in formula_desc:
     elements.append(Paragraph(f"• {line}", styles["Normal"]))
@@ -224,10 +224,10 @@ elements.append(Spacer(1, 20))
 
 # Tabla de resultados por escenario
 if not df_escenarios.empty:
-    tabla_data = [["Escenario", "Usuarios", "Tx Enviadas", "Resp Prom (ms)", "Resp Min (ms)", "Resp Max (ms)", "% Error", "TPS"]]
+    tabla_data = [["Escenario", "Tx Enviadas", "(t)Resp Prom (ms)", "(t)Resp Min (ms)", "(t)Resp Max (ms)", "% Error", "TPS"]]
     for _, row in df_escenarios.iterrows():
         tabla_data.append([
-            row["escenario"], int(row["usuarios"]), int(row["transacciones"]),
+            row["escenario"], int(row["transacciones"]),
             f"{row['tiempo_prom']:.2f}", f"{row['tiempo_min']:.2f}",
             f"{row['tiempo_max']:.2f}", f"{row['error_pct']:.2f}%",
             f"{row['tps']:.2f}"
