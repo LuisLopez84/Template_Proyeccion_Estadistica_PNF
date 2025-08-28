@@ -33,7 +33,7 @@ def logistic(x, L, k, x0):
 if len(sys.argv) > 1:
     escenarios_dir = sys.argv[1]
 else:
-    escenarios_dir = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultaProductoCapaSMP"
+    escenarios_dir = r"D:\Jmeter_Prueba_Pipeline_Varios\ConsultaProductosCapaPB"
 
 usuarios = []
 tps_promedio = []
@@ -109,7 +109,7 @@ tps_promedio = tps_promedio[orden]
 df_escenarios = pd.DataFrame(resultados_escenarios)
 
 # ----------------------------
-# Ajuste de curva logística
+# Ajuste de curva logística con fallback empírico
 # ----------------------------
 tiene_ajuste = False
 L = k = x0 = breakpoint = None
@@ -117,14 +117,44 @@ y_pred = []
 
 if len(usuarios) >= 3:
     try:
+        # Parámetros iniciales: L, k, x0
         p0 = [max(tps_promedio), 1, np.median(usuarios)]
-        params, _ = curve_fit(logistic, usuarios, tps_promedio, p0, maxfev=10000)
+
+        # Ajuste con restricciones: L >= 0, k >= 0, x0 >= 0
+        params, _ = curve_fit(
+            logistic,
+            usuarios,
+            tps_promedio,
+            p0=p0,
+            bounds=([0, 0, 0], [np.inf, np.inf, np.inf]),
+            maxfev=10000
+        )
+
+        # Parámetros resultantes
         L, k, x0 = params
         breakpoint = x0
         y_pred = logistic(usuarios, L, k, x0)
         tiene_ajuste = True
+
+        # --- Validar si el breakpoint es lógico ---
+        if breakpoint <= 0 or breakpoint < min(usuarios) or breakpoint > max(usuarios):
+            # Calcular breakpoint empírico (90% del TPS máximo)
+            TPSmax = max(tps_promedio)
+            umbral = 0.9 * TPSmax
+            for u, tps in zip(usuarios, tps_promedio):
+                if tps >= umbral:
+                    breakpoint = u
+                    break
+
     except Exception as e:
         print(f"No se pudo ajustar la curva: {e}")
+        # Fallback directo a método empírico
+        TPSmax = max(tps_promedio)
+        umbral = 0.9 * TPSmax
+        for u, tps in zip(usuarios, tps_promedio):
+            if tps >= umbral:
+                breakpoint = u
+                break
 
 # ----------------------------
 # Generar gráfica en OUTPUT_DIR
