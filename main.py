@@ -176,14 +176,21 @@ else:
 # Generar PDF en OUTPUT_DIR
 # ----------------------------
 pdf_path = os.path.join(OUTPUT_DIR, "Informe_Proyeccion_Estadistica_PNF.pdf")
-doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+doc = SimpleDocTemplate(
+    pdf_path,
+    pagesize=letter,
+    topMargin=50,      # margen superior en puntos (72 = 1 pulgada)
+    leftMargin=50,     # margen izquierdo
+    rightMargin=50,    # margen derecho
+    bottomMargin=50    # margen inferior
+)
 styles = getSampleStyleSheet()
 elements = []
 
 
 # Título
 elements.append(Paragraph("<b>PROYECCIÓN ESTADÍSTICA DEL COMPORTAMIENTO DEL SERVICIO</b>", styles["Title"]))
-elements.append(Spacer(1, -28))
+elements.append(Spacer(1, 6))
 elements.append(Paragraph(f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", styles["Normal"]))
 elements.append(Spacer(1, 20))
 
